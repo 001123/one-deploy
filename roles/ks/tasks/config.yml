@@ -1,0 +1,17 @@
+---
+- name: Configure OneKS Server
+  opennebula.deploy.cfgtool:
+    dest: /etc/one/oneks-server.conf
+    parser: Yaml
+    actions:
+      - put:
+          path: [":server", ":bind"]
+          value: "{{ ks_bind_addr }}"
+      - put:
+          path: [":server", ":port"]
+          value: "{{ ks_port }}"
+      - put:
+          path: [":one_xmlrpc_tproxy"]
+          value: "{{ ks_one_xmlrpc_tproxy }}"
+  notify:
+    - Restart OneKS Server

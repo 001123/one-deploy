@@ -25,9 +25,11 @@
     group: 9869
     mode: u=rwx,go=rx
 
-- when: _delegate_to is defined
+- when:
+    - features.ceph | bool
+    - groups.get(mon_group | d('mon'), []) | length > 0
   vars:
-    _delegate_to: "{{ groups.get(mon_group | d('mon'), []).0 }}"
+    _delegate_to: "{{ (groups.get(mon_group | d('mon'), []) + ['localhost'])[0] }}"
   block:
     - delegate_to: "{{ _delegate_to }}"
       run_once: true
@@ -125,9 +127,11 @@
             {{ new_uuid }}
       run_once: true
 
-- when: _delegate_to is defined
+- when:
+    - features.ceph | bool
+    - groups.get(mon_group | d('mon'), []) | length > 0
   vars:
-    _delegate_to: "{{ groups.get(mon_group | d('mon'), []).0 }}"
+    _delegate_to: "{{ (groups.get(mon_group | d('mon'), []) + ['localhost'])[0] }}"
   block:
     - delegate_to: "{{ _delegate_to }}"
       run_once: true

@@ -1,0 +1,8 @@
+---
+- name: Restart OneKS Server
+  ansible.builtin.service:
+    name: opennebula-ks
+    state: restarted
+  when:
+    - inventory_hostname == leader
+    - not (ks_no_restart | d(false) | bool)

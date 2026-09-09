@@ -1,0 +1,4 @@
+---
+ks_bind_addr: '127.0.0.1'
+ks_port: 10780
+ks_one_xmlrpc_tproxy: "http://{{ ansible_default_ipv4.address | d(ansible_host) }}:2633/RPC2"
