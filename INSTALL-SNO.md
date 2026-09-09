@@ -118,6 +118,13 @@ Dự án yêu cầu các collection của Ansible để quản trị KVM, mã h�
 ansible-galaxy collection install -r requirements.yml -p ansible_collections
 ```
 
+#### Bước 2.2.3: (Khuyến nghị) Thêm Static Route trên macOS để truy cập mạng Private VM
+Mạng Private `oneks_priv` (`172.20.0.0/24`) nằm sau Mini PC. Để máy Mac có thể ping và SSH trực tiếp vào các máy ảo thuộc dải này:
+```bash
+sudo route -n add -net 172.20.0.0/24 192.168.250.3
+```
+*(Chi tiết cách kiểm tra, xóa hoặc lưu vĩnh viễn xem tại [Bước 6.5](#bước-65-định-tuyến-từ-macos-vào-mạng-private-172200024)).*
+
 ---
 
 ## 3. Cấu Hình Inventory Cho SNO (`inventory/sno.yml`)
@@ -416,6 +423,76 @@ OpenNebula 7.4 tích hợp sẵn dịch vụ **OneKS (OpenNebula Kubernetes Serv
      - **Public Network**: Chọn mạng `lan_net` (ID: `0`, dải `192.168.250.200 - 229`) để Virtual Router / Ingress nhận IP Public và mở cổng ra ngoài.
      - **Private Network**: Chọn mạng `oneks_priv` (ID: `1`, dải `172.20.0.10 - 249`) để các node Kubernetes Control Plane và Worker giao tiếp nội bộ tốc độ cao và bảo mật.
 3. Bấm **Create** $\rightarrow$ OneKS sẽ tự động tải appliance, thiết lập router ảo, cài đặt RKE2 Kubernetes và cung cấp file `kubeconfig` trực tiếp trên web console.
+
+---
+
+### Bước 6.5: Định tuyến từ macOS vào mạng Private (`172.20.0.0/24`)
+
+Máy ảo Kubernetes (Control Plane / Worker) hoặc máy ảo nội bộ được cấp IP thuộc dải `172.20.0.0/24` (thông qua bridge `br-priv` trên Mini PC). Do dải này không nằm cùng mạng LAN vật lý với máy Mac, bạn cần trỏ static route trên macOS qua Mini PC (`192.168.250.3`) để có thể ping, SSH hoặc gọi API trực tiếp vào máy ảo.
+
+#### 1. Thêm static route tạm thời (có hiệu lực ngay lập tức):
+```bash
+sudo route -n add -net 172.20.0.0/24 192.168.250.3
+```
+
+#### 2. Kiểm tra kết nối:
+- Ping kiểm tra gateway của bridge `br-priv` trên Mini PC (luôn phản hồi):
+  ```bash
+  ping -c 2 172.20.0.1
+  ```
+- Kiểm tra bảng định tuyến trên macOS:
+  ```bash
+  netstat -nr -f inet | grep 172.20.0
+  ```
+- Khi máy ảo trong mạng private đã bật (ví dụ có IP `172.20.0.13`), bạn có thể ping và SSH thẳng từ Terminal máy Mac:
+  ```bash
+  ssh root@172.20.0.13
+  ```
+
+#### 3. Xóa static route (khi không sử dụng):
+```bash
+sudo route -n delete -net 172.20.0.0/24 192.168.250.3
+```
+
+#### 4. Cấu hình tự động lưu vĩnh viễn trên macOS (Persistent across reboots):
+Lệnh `route add` trên macOS sẽ mất hiệu lực sau khi restart máy. Để route tự động kích hoạt mỗi khi khởi động macOS:
+
+1. Tạo file LaunchDaemon:
+   ```bash
+   sudo nano /Library/LaunchDaemons/local.route.oneks.plist
+   ```
+2. Dán nội dung sau:
+   ```xml
+   <?xml version="1.0" encoding="UTF-8"?>
+   <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+   <plist version="1.0">
+   <dict>
+       <key>Label</key>
+       <string>local.route.oneks</string>
+       <key>ProgramArguments</key>
+       <array>
+           <string>/sbin/route</string>
+           <string>-n</string>
+           <string>add</string>
+           <string>-net</string>
+           <string>172.20.0.0/24</string>
+           <string>192.168.250.3</string>
+       </array>
+       <key>RunAtLoad</key>
+       <true/>
+       <key>StandardErrorPath</key>
+       <string>/tmp/local.route.oneks.err</string>
+       <key>StandardOutPath</key>
+       <string>/tmp/local.route.oneks.out</string>
+   </dict>
+   </plist>
+   ```
+3. Phân quyền và kích hoạt service:
+   ```bash
+   sudo chown root:wheel /Library/LaunchDaemons/local.route.oneks.plist
+   sudo chmod 644 /Library/LaunchDaemons/local.route.oneks.plist
+   sudo launchctl load /Library/LaunchDaemons/local.route.oneks.plist
+   ```
 
 ---
 
