@@ -1,0 +1,113 @@
+---
+# OpenNebula 7.4 Single Node OpenNebula (SNO) Inventory
+# Target Host: Mini PC (IP: 192.168.250.3, User: mini, Hostname: mini-ubuntu)
+
+all:
+  vars:
+    # --- SSH & User Settings ---
+    ansible_user: mini
+    ansible_python_interpreter: /usr/bin/python3
+    # Ensure SSH keys are generated and deployed for passwordless access
+    ensure_keys_for: [mini, root]
+
+    # --- OpenNebula Core Settings ---
+    one_version: '7.4'
+    # Password for the built-in 'oneadmin' administrator account.
+    # Change this to a secure password (avoid trivial passwords like 'opennebula' or 'password').
+    one_pass: 'OpenNebula@2026'
+
+    # OpenNebula Token:
+    # - Leave empty or commented out for Community Edition (free from downloads.opennebula.io)
+    # - Set to '<customer_user>:<token>' if you have an OpenNebula Enterprise Subscription
+    # one_token: ''
+
+    # --- Database Configuration ---
+    # MariaDB is recommended and default for OpenNebula
+    db_backend: MariaDB
+    db_name: opennebula
+    db_owner: oneadmin
+    db_password: 'OneDbPassword@2026'
+
+    # --- Storage Datastore Configuration ---
+    # Mode 'ssh': Uses local filesystem on the host (/var/lib/one/datastores)
+    # Ideal for Single Node (SNO) / All-in-One deployment
+    ds:
+      mode: ssh
+
+    # --- Virtual Network & Bridge Configuration ---
+    # Manages a Linux Bridge 'br0' linked to physical network adapter 'eno1'.
+    # With 'move_ip: true', one-deploy will migrate IP 192.168.250.3 from eno1 to br0 via Netplan.
+    vn:
+      lan_net:
+        managed: true
+        move_ip: true
+        template:
+          VN_MAD: bridge
+          PHYDEV: eno1
+          BRIDGE: br0
+          # Address Range (AR) assigned to Virtual Machines
+          AR:
+            TYPE: IP4
+            IP: 192.168.250.200
+            SIZE: 30
+          NETWORK_ADDRESS: 192.168.250.0
+          NETWORK_MASK: 255.255.255.0
+          GATEWAY: 192.168.250.1
+          DNS: 192.168.250.1 1.1.1.1
+
+      oneks_priv:
+        managed: true
+        move_ip: false
+        template:
+          VN_MAD: bridge
+          BRIDGE: br-priv
+          # Address Range for Kubernetes internal nodes / pods
+          AR:
+            TYPE: IP4
+            IP: 172.20.0.10
+            SIZE: 240
+          NETWORK_ADDRESS: 172.20.0.0
+          NETWORK_MASK: 255.255.255.0
+          GATEWAY: 172.20.0.1
+          DNS: 192.168.250.1 1.1.1.1
+
+    # --- Features Toggles ---
+    features:
+      gui: true          # FireEdge Sunstone Web GUI (Port 2616 or via Nginx 443)
+      gate: true         # OneGate service
+      flow: true         # OneFlow multi-tier orchestration service
+      form: true         # OneForm service (OpenNebula >= 7.2)
+      ks: true           # OneKS Kubernetes Service (OpenNebula >= 7.2)
+      prometheus: false  # Node & VM metrics (can be set to true if Prometheus is desired)
+      ceph: false
+      evpn: false
+
+    # --- TProxy Configuration (Required for OneKS & OneGate) ---
+    gate_tproxy:
+      - :service_port: 5030
+        :remote_addr: 192.168.250.3
+        :remote_port: 5030
+      - :service_port: 2633
+        :remote_addr: 192.168.250.3
+        :remote_port: 2633
+
+    # --- Web UI & SSL Termination (Nginx) ---
+    # Sets up Nginx as a reverse proxy with an automatically generated self-signed SSL certificate
+    ssl:
+      web_server: nginx
+      generate_cert: true
+      key: /etc/one/fireedge-pki/key/server.key
+      certchain: /etc/one/fireedge-pki/crt/certchain.crt
+
+# In Single Node OpenNebula (SNO), the Mini PC plays BOTH roles:
+# 1. Frontend: runs oned, database, FireEdge Sunstone, schedulers, APIs.
+# 2. Node: runs KVM/QEMU, Libvirt, and VM workloads.
+frontend:
+  hosts:
+    mini-ubuntu:
+      ansible_host: 192.168.250.3
+
+node:
+  hosts:
+    mini-ubuntu:
+      ansible_host: 192.168.250.3

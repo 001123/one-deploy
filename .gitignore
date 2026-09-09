@@ -18,6 +18,7 @@ __pycache__/
 !/inventory/federation-slave2.yml
 !/inventory/evpn-ha.yml
 !/inventory/pci_passthrough.yml
+!/inventory/sno.yml
 /.env.yml
 .vscode
 .ansible/

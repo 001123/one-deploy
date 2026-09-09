@@ -44,6 +44,13 @@
         # NOTE: Due to too old version of ruby in SLES 15 OneForm is unsupported.
         - not (ansible_distribution == 'SLES' and ansible_distribution_major_version == '15')
 
+    - role: ks
+      tags: [ks, oneks]
+      when:
+        - features.ks | bool # enabled by default
+        - one_version is version('7.2.0', '>=')
+        - not (ansible_distribution == 'SLES' and ansible_distribution_major_version == '15')
+
     - role: gui
       tags: [gui]
       when:
