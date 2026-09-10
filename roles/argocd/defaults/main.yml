@@ -1,0 +1,37 @@
+---
+# Kubernetes Cluster Connection
+argocd_kubeconfig: "{{ lookup('env', 'KUBECONFIG') | default('~/.kube/config', true) }}"
+argocd_context: "default"
+
+# Namespace
+argocd_namespace: "argocd"
+argocd_create_namespace: true
+
+# Helm Release Settings
+argocd_helm_release_name: "argo-cd"
+argocd_helm_chart_repo: "https://argoproj.github.io/argo-helm"
+argocd_helm_chart_name: "argo-cd"
+argocd_helm_chart_version: "7.7.7"
+argocd_helm_timeout: "10m0s"
+
+# Architecture: Non-HA for Lab / Dev
+argocd_ha_enabled: false
+
+# ArgoCD Web Server Expose Method
+argocd_server_service_type: "NodePort"
+argocd_server_nodeport_http: 30080
+argocd_server_nodeport_https: 30443
+
+# Ingress Settings (Tùy chọn nếu cụm có Ingress Controller)
+argocd_ingress_enabled: false
+argocd_ingress_hostname: "argocd.lab.local"
+argocd_ingress_class_name: "nginx"
+
+# SOPS + Age Configuration
+argocd_sops_enabled: true
+argocd_sops_age_secret_name: "sops-age"
+argocd_sops_age_key_file: "{{ lookup('env', 'HOME') }}/lab/lab-opennebula/gitops-opennebula/credentials/age.key"
+argocd_sops_version: "3.9.4"
+
+# GitOps Repository Path
+argocd_gitops_repo_path: "{{ lookup('env', 'HOME') }}/lab/lab-opennebula/gitops-opennebula"
