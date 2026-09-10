@@ -6,11 +6,15 @@ pki_defaults:
     crt: crt
     csr: csr
   ca:
+    common_name: OpenNebula Root CA
     key: ca.key
     crt: ca.crt
     csr: ca.csr
+    not_after: "+3650d"
   server:
+    common_name: OpenNebula Server
     key: server.key
     crt: server.crt
     csr: server.csr
+    not_after: "+365d"
   certchain: certchain.crt
