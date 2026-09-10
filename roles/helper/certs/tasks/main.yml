@@ -69,7 +69,8 @@
           - digitalSignature
           - keyEncipherment
           - keyCertSign
-        common_name: ca
+        use_common_name_for_san: false
+        common_name: "{{ pki.ca.common_name | d('OpenNebula Root CA') }}"
         owner: 0
         group: 0
         mode: u=rw,go=
@@ -81,6 +82,7 @@
         privatekey_path: "{{ ca_key }}"
         csr_path: "{{ ca_csr }}"
         provider: selfsigned
+        selfsigned_not_after: "{{ pki.ca.not_after | d('+3650d') }}"
         owner: 0
         group: 0
         mode: u=rw,go=
@@ -110,8 +112,9 @@
         extended_key_usage:
           - serverAuth
           - clientAuth
+        use_common_name_for_san: false
         subject_alt_name: "{{ subject_alt_name }}"
-        common_name: server
+        common_name: "{{ pki.server.common_name | d('OpenNebula Server') }}"
         owner: 0
         group: 0
         mode: u=rw,go=
@@ -123,6 +126,7 @@
         csr_path: "{{ server_csr }}"
         ownca_path: "{{ ca_crt }}"
         ownca_privatekey_path: "{{ ca_key }}"
+        ownca_not_after: "{{ pki.server.not_after | d('+365d') }}"
         provider: ownca
         owner: 0
         group: 0

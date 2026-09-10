@@ -78,7 +78,7 @@ all:
       flow: true         # OneFlow multi-tier orchestration service
       form: true         # OneForm service (OpenNebula >= 7.2)
       ks: true           # OneKS Kubernetes Service (OpenNebula >= 7.2)
-      prometheus: false  # Node & VM metrics (can be set to true if Prometheus is desired)
+      prometheus: true   # Node & VM metrics (can be set to true if Prometheus is desired)
       ceph: false
       evpn: false
 
@@ -98,6 +98,13 @@ all:
       generate_cert: true
       key: /etc/one/fireedge-pki/key/server.key
       certchain: /etc/one/fireedge-pki/crt/certchain.crt
+
+    # Custom PKI Certificate Details (Tên hiển thị trong Keychain / Trình duyệt)
+    pki:
+      ca:
+        common_name: 'OpenNebula Lab Root CA'
+      server:
+        common_name: 'OpenNebula Lab Server'
 
 # In Single Node OpenNebula (SNO), the Mini PC plays BOTH roles:
 # 1. Frontend: runs oned, database, FireEdge Sunstone, schedulers, APIs.

@@ -226,6 +226,13 @@ all:
       key: /etc/one/fireedge-pki/key/server.key
       certchain: /etc/one/fireedge-pki/crt/certchain.crt
 
+    # Tùy biến tên hiển thị chứng chỉ PKI (Common Name hiển thị trong Keychain / Trình duyệt)
+    pki:
+      ca:
+        common_name: 'OpenNebula Lab Root CA'
+      server:
+        common_name: 'OpenNebula Lab Server'
+
 # Khai báo SNO: Cả frontend và node đều trỏ vào mini-ubuntu
 frontend:
   hosts:
@@ -369,6 +376,48 @@ Mở trình duyệt trên máy tính cùng mạng LAN:
 > ```bash
 > sudo cat /var/lib/one/.one/one_auth
 > ```
+
+> [!TIP]
+> **Xử lý cảnh báo chứng chỉ SSL tự ký (NET::ERR_CERT_AUTHORITY_INVALID):**
+> 1. **Cách nhanh (Chrome)**: Khi gặp trang cảnh báo đỏ, click chuột vào nền trang và gõ thẳng phím `thisisunsafe` để truy cập ngay.
+> 2. **Cách triệt để (macOS Keychain)**: Tải file CA về máy Mac:
+>    ```bash
+>    sudo cp /etc/one/fireedge-pki/crt/ca.crt /tmp/opennebula-ca.crt && sudo chmod 644 /tmp/opennebula-ca.crt
+>    scp mini@192.168.250.3:/tmp/opennebula-ca.crt ~/Downloads/
+>    sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ~/Downloads/opennebula-ca.crt
+>    ```
+>    Khởi động lại trình duyệt (`Cmd + Q`) để có ổ khóa xanh an toàn.
+
+> [!IMPORTANT]
+> **Thời hạn và Hướng dẫn gia hạn (Renew) chứng chỉ SSL:**
+> * **Thời hạn**:
+>   * Root CA (`OpenNebula Lab Root CA`): Hạn dùng **10 năm** (đến năm 2036). Do đó bạn chỉ cần cài đặt và tin cậy trên máy Mac **một lần duy nhất**.
+>   * Server Certificate: Hạn dùng **1 năm (365 ngày)** để tuân thủ quy chuẩn bảo mật bắt buộc của Apple macOS/iOS và Google Chrome (tối đa 398 ngày).
+> * **Khi chứng chỉ hết hạn (sau 1 năm)**:
+>   * Các dịch vụ OpenNebula và toàn bộ máy ảo VM, Kubernetes OneKS bên trong **hoàn toàn không bị gián đoạn hay ảnh hưởng**.
+>   * Trình duyệt web khi truy cập sẽ hiển thị cảnh báo `NET::ERR_CERT_DATE_INVALID`.
+> * **Cách gia hạn lại thêm 1 năm (chỉ mất 10 giây)**:
+>   * **Cách 1 (Qua Ansible - Khuyên dùng)**:
+>     1. Trên Mini PC, xóa cert server cũ (vẫn giữ nguyên Root CA):
+>        ```bash
+>        sudo rm -f /etc/one/fireedge-pki/crt/server.crt /etc/one/fireedge-pki/csr/server.csr /etc/one/fireedge-pki/crt/certchain.crt
+>        ```
+>     2. Trên máy Mac, chạy lại playbook với tag `gui`:
+>        ```bash
+>        .venv/bin/ansible-playbook -i inventory/sno.yml playbooks/site.yml --tags gui
+>        ```
+>        *Ansible sẽ tự động lấy Root CA cũ ký ra một server certificate mới có hạn thêm 365 ngày. Do Root CA trên Mac không đổi, trình duyệt trên Mac sẽ lập tức xanh lại mà không cần import lại gì cả.*
+>   * **Cách 2 (Bằng 1 lệnh OpenSSL trực tiếp trên Mini PC)**:
+>     ```bash
+>     sudo openssl x509 -req -in /etc/one/fireedge-pki/csr/server.csr \
+>       -CA /etc/one/fireedge-pki/crt/ca.crt \
+>       -CAkey /etc/one/fireedge-pki/key/ca.key \
+>       -CAcreateserial -out /etc/one/fireedge-pki/crt/server.crt \
+>       -days 365 -sha256 \
+>       -extfile <(echo -e "subjectAltName=IP:192.168.250.3\nextendedKeyUsage=serverAuth,clientAuth\nbasicConstraints=CA:FALSE")
+>     sudo cat /etc/one/fireedge-pki/crt/server.crt /etc/one/fireedge-pki/crt/ca.crt | sudo tee /etc/one/fireedge-pki/crt/certchain.crt > /dev/null
+>     sudo systemctl reload nginx
+>     ```
 
 ---
 
