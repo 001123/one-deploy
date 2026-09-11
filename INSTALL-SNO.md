@@ -2,6 +2,8 @@
 
 Tài liệu này hướng dẫn chi tiết quy trình triển khai **OpenNebula 7.4 SNO** (Single Node OpenNebula / All-in-One) lên **Mini PC Ubuntu** bằng bộ công cụ tự động hóa chính thức **`one-deploy` (Ansible)**.
 
+Xem thêm [Flow và cơ chế hoạt động của SNO với Ansible](docs/SNO-ANSIBLE-FLOW.md) để hiểu thứ tự role và hành vi của mã hiện tại. Một số ví dụ bên dưới dùng cấu hình cũ; tài liệu flow chỉ rõ khác biệt về Prometheus, tên host đăng ký, endpoint OneKS và phần gateway/NAT private cần cấu hình riêng.
+
 ---
 
 ## 1. Thông Số Hệ Thống & Kiến Trúc SNO
