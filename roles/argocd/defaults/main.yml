@@ -11,8 +11,11 @@ argocd_create_namespace: true
 argocd_helm_release_name: "argo-cd"
 argocd_helm_chart_repo: "https://argoproj.github.io/argo-helm"
 argocd_helm_chart_name: "argo-cd"
-argocd_helm_chart_version: "7.7.7"
+argocd_helm_chart_version: "10.8.4"  # Argo CD v3.5.2
 argocd_helm_timeout: "10m0s"
+
+# Preserve resource ownership when upgrading existing Argo CD 2.x installations.
+argocd_resource_tracking_method: "label"
 
 # Architecture: Non-HA for Lab / Dev
 argocd_ha_enabled: false

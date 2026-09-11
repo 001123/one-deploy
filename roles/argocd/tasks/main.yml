@@ -51,6 +51,7 @@
       ansible.builtin.slurp:
         src: "{{ resolved_age_key_file }}"
       register: age_key_b64
+      no_log: true
 
     - name: Create or update Kubernetes Secret sops-age
       kubernetes.core.k8s:
@@ -66,6 +67,7 @@
           type: Opaque
           data:
             keys.txt: "{{ age_key_b64.content }}"
+      no_log: true
 
     - name: Create ConfigMap for ArgoCD SOPS CMP Plugin
       kubernetes.core.k8s:
@@ -140,32 +142,17 @@
     context: "{{ argocd_context if (argocd_context | d('') | length > 0) else omit }}"
     api_version: apps/v1
     kind: Deployment
-    name: "{{ argocd_helm_release_name }}-server"
+    label_selectors:
+      - "app.kubernetes.io/instance={{ argocd_helm_release_name }}"
+      - "app.kubernetes.io/component=server"
     namespace: "{{ argocd_namespace }}"
     wait: true
     wait_condition:
       type: Available
       status: "True"
     wait_timeout: 300
-
-- name: Get ArgoCD initial admin password secret
-  kubernetes.core.k8s_info:
-    kubeconfig: "{{ argocd_kubeconfig }}"
-    context: "{{ argocd_context if (argocd_context | d('') | length > 0) else omit }}"
-    api_version: v1
-    kind: Secret
-    name: argocd-initial-admin-secret
-    namespace: "{{ argocd_namespace }}"
-  register: argocd_admin_secret
-
-- name: Extract admin password
-  ansible.builtin.set_fact:
-    argocd_initial_admin_password: >-
-      {{
-        (argocd_admin_secret.resources[0].data.password | b64decode)
-        if (argocd_admin_secret.resources | length > 0 and 'password' in argocd_admin_secret.resources[0].data)
-        else 'Secret argocd-initial-admin-secret đã được đổi hoặc xoá'
-      }}
+  register: argocd_server_deployments
+  failed_when: argocd_server_deployments.resources | default([]) | length != 1
 
 - name: Get Kubernetes Node IP for connection info
   kubernetes.core.k8s_info:
@@ -193,7 +180,8 @@
       - "🌐 Web UI (NodePort HTTPS): https://{{ primary_node_ip }}:{{ argocd_server_nodeport_https }}"
       - "🌐 Web UI (NodePort HTTP) : http://{{ primary_node_ip }}:{{ argocd_server_nodeport_http }}"
       - "👤 Username              : admin"
-      - "🔑 Initial Password       : {{ argocd_initial_admin_password }}"
+      - "🔑 Lấy mật khẩu khởi tạo trên máy quản trị (không ghi vào log):"
+      - "   kubectl --kubeconfig={{ argocd_kubeconfig | quote }}{% if argocd_context | d('') | length > 0 %} --context={{ argocd_context | quote }}{% endif %} -n {{ argocd_namespace }} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 --decode"
       - "----------------------------------------------------------------"
       - "🚀 Bước tiếp theo: Kích hoạt GitOps Root Application:"
       - "   kubectl apply -f {{ argocd_gitops_repo_path }}/bootstrap/root-application.yaml"

@@ -6,6 +6,9 @@ global:
   domain: "{{ argocd_ingress_hostname }}"
 {% endif %}
 
+configs:
+  cm:
+    application.resourceTrackingMethod: "{{ argocd_resource_tracking_method }}"
 
 server:
   replicas: 1
@@ -66,7 +69,10 @@ repoServer:
   extraContainers:
     - name: sops-cmp
       command: ["/var/run/argocd/argocd-cmp-server"]
-      image: "quay.io/argoproj/argocd:v2.13.0"
+      # Helm renders this expression so the CMP always matches the repo-server image.
+{% raw %}
+      image: '{{ default .Values.global.image.repository .Values.repoServer.image.repository }}:{{ default (include "argo-cd.defaultTag" .) .Values.repoServer.image.tag }}'
+{% endraw %}
       securityContext:
         runAsNonRoot: true
         runAsUser: 999
