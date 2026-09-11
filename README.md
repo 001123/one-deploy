@@ -7,6 +7,11 @@ The documentation is organized based on three distinct reference architecture de
 ## Documentation
 [Documentation for one-deploy is in the project Wiki](../../wiki/)
 
+### SNO lab (tiếng Việt)
+
+- [Flow và giải thích cách SNO hoạt động với Ansible](docs/SNO-ANSIBLE-FLOW.md): kiến trúc, thứ tự role, mạng VM, OneKS, bootstrap Argo CD và vòng đồng bộ GitOps.
+- [Hướng dẫn cài đặt SNO](INSTALL-SNO.md): chuẩn bị môi trường và các bước thao tác.
+
 ## Contributing
 
 * Guidelines
