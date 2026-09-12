@@ -268,9 +268,9 @@ Một số ví dụ trong `INSTALL-SNO.md` phản ánh trạng thái cũ: Promet
 
 | Lớp | Công cụ quản lý trong repo | Đầu vào / kết quả |
 | --- | --- | --- |
-| Ubuntu, OpenNebula, KVM, mạng và datastore | Ansible `playbooks/main.yml` | `inventory/sno.yml` → hạ tầng SNO. |
+| Ubuntu, OpenNebula, KVM, mạng và datastore | Ansible `playbooks/main.yml` (trong `one-deploy`) | `inventory/sno.yml` → hạ tầng SNO. |
 | Cụm Kubernetes và các VM của cụm | OneKS qua thao tác tạo cụm riêng | Cụm Kubernetes sẵn sàng, kubeconfig để truy cập API. |
-| Argo CD, CMP SOPS và khóa giải mã | Ansible `playbooks/argocd.yml`, gọi Helm và Kubernetes API | Cài/nâng cấp Argo CD trong namespace `argocd`. |
+| Argo CD, CMP SOPS và khóa giải mã | Ansible `bootstrap/ansible/playbooks/argocd.yml` (trong `gitops-opennebula`), gọi Helm và Kubernetes API | Cài/nâng cấp Argo CD trong namespace `argocd`. |
 | Root Application ban đầu | Người quản trị apply manifest một lần | Kích hoạt theo dõi `bootstrap/apps` trên Git. |
 | Application con, Nginx, monitoring trong Kubernetes | Argo CD | Theo Git, render manifest và đồng bộ vào cluster. |
 
@@ -280,7 +280,7 @@ Một số ví dụ trong `INSTALL-SNO.md` phản ánh trạng thái cũ: Promet
 flowchart TD
     SNO["Ansible main.yml<br/>Dựng OpenNebula + KVM trên Mini PC"]
     ONEKS["Tạo cụm bằng OneKS<br/>VM Kubernetes + kubeconfig"]
-    BOOT["Ansible argocd.yml trên localhost<br/>Kubernetes API + Helm<br/>Argo CD + SOPS CMP + Secret sops-age"]
+    BOOT["Ansible argocd.yml trong gitops-opennebula<br/>Kubernetes API + Helm<br/>Argo CD + SOPS CMP + Secret sops-age"]
     APPLY["Apply bootstrap/root-application.yaml<br/>Bước riêng sau playbook"]
     ROOT["Root Application<br/>Theo dõi bootstrap/apps trên Git"]
     NGINX["Application nginx-demo<br/>apps/nginx-demo/base<br/>SOPS → Kustomize"]
@@ -295,9 +295,9 @@ Các mũi tên ở phần đầu là quan hệ phụ thuộc và trình tự tha
 
 ### 9.2. Ansible khởi tạo Argo CD như thế nào?
 
-[playbooks/argocd.yml](../playbooks/argocd.yml) chạy trên `localhost`, `connection: local`, `become: false`. Khác với `main.yml` dùng SSH tới Mini PC, playbook này dùng **kubeconfig để gọi Kubernetes API** của cụm đã có.
+Playbook `argocd.yml` và role `argocd` được đặt trong thư mục `bootstrap/ansible/` của repository **`gitops-opennebula`** (nhằm tách bạch hoàn toàn giữa tầng IaaS OpenNebula và tầng ứng dụng GitOps). Playbook này chạy trên `localhost`, `connection: local`, `become: false`, sử dụng **kubeconfig để gọi Kubernetes API** của cụm đã có.
 
-Role [argocd](../roles/argocd/tasks/main.yml) thực hiện theo thứ tự:
+Role `argocd` thực hiện theo thứ tự:
 
 1. Kiểm tra kết nối Kubernetes, dừng nếu không đọc được thông tin cluster.
 2. Tạo namespace `argocd`.
@@ -307,15 +307,17 @@ Role [argocd](../roles/argocd/tasks/main.yml) thực hiện theo thứ tự:
 
 Template values gắn sidecar `sops-cmp` vào repo-server, mount khóa từ Secret và cung cấp binary SOPS qua init container. Role không tự cấu hình credential truy cập Git riêng tư; Argo CD phải có khả năng đọc repo được khai báo trong Application.
 
-Các lệnh khởi tạo dưới đây dành cho người quản trị, chạy từ thư mục `one-deploy` khi cụm đã sẵn sàng:
+Các lệnh khởi tạo dưới đây dành cho người quản trị, chuyển sang repo `gitops-opennebula` khi cụm OneKS đã sẵn sàng:
 
 ```bash
-.venv/bin/ansible-playbook -i localhost, playbooks/argocd.yml \
+cd ../gitops-opennebula/bootstrap/ansible
+
+ansible-playbook -i localhost, playbooks/argocd.yml \
   -e argocd_kubeconfig="$HOME/.kube/config-opennebula-dev" \
   -e argocd_context=default
 
 kubectl --kubeconfig="$HOME/.kube/config-opennebula-dev" --context=default \
-  apply -f ../gitops-opennebula/bootstrap/root-application.yaml
+  apply -f ../root-application.yaml
 ```
 
 Private key cần khớp recipient đã mã hóa Secret trong Git. Tạo một khóa mới không tự giải mã được các file đã mã hóa bằng khóa cũ. Không cần chạy lại Ansible mỗi lần cập nhật ứng dụng; chỉ chạy khi cần thay đổi phần Argo CD do role này quản lý.
@@ -391,4 +393,4 @@ kdev -n monitoring get pods,svc,pvc
 
 Root lỗi: xem URL/revision/path và quyền đọc Git. Render lỗi: xem source Helm, plugin CMP và khóa Age có khớp Secret hay không. Application `Synced` nhưng workload chưa khỏe: xem Pod events, image, tài nguyên và các dependency. Pod Ready nhưng không vào được NodePort: kiểm tra route và forwarding/firewall giữa máy người dùng, Mini PC và mạng VM.
 
-Nguồn đối chiếu: [role Argo CD](../roles/argocd/README.md), [Root Application](../../gitops-opennebula/bootstrap/root-application.yaml), [Nginx Application](../../gitops-opennebula/bootstrap/apps/nginx-demo.yaml), [Monitoring Application](../../gitops-opennebula/bootstrap/apps/monitoring.yaml), [Helm values monitoring](../../gitops-opennebula/apps/monitoring/values.yaml), [README GitOps](../../gitops-opennebula/README.md). Các liên kết sang repo GitOps dùng bố cục hai checkout nằm cạnh nhau trong workspace này.
+Nguồn đối chiếu: [role Argo CD](../../gitops-opennebula/bootstrap/ansible/roles/argocd/README.md), [Root Application](../../gitops-opennebula/bootstrap/root-application.yaml), [Nginx Application](../../gitops-opennebula/bootstrap/apps/nginx-demo.yaml), [Monitoring Application](../../gitops-opennebula/bootstrap/apps/monitoring.yaml), [Helm values monitoring](../../gitops-opennebula/apps/monitoring/values.yaml), [README GitOps](../../gitops-opennebula/README.md). Các liên kết sang repo GitOps dùng bố cục hai checkout nằm cạnh nhau trong workspace này.
